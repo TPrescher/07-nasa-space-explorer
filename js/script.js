@@ -1,6 +1,10 @@
 // NASA API key
 const API_KEY = "4mTOcCDF7tsvdHjlN96wfAhLVax7SGuPjnYpCvc5";
 
+// --- APOD DATA CACHE ---
+// This array will store the most recent 9 days of APOD data fetched from the API.
+let cachedWindow = [];
+
 // NASA color palette (for reference)
 // --nasa-primary: #105bd8;
 // --nasa-primary-dark: #0b3d91;
@@ -248,32 +252,33 @@ function init() {
       setupDateInputsWithNote(startInput, endInput);
     }
 
-    // On page load, fetch most recent APOD, then 9 valid entries
+    // On page load, fetch most recent 9-day window
     async function loadRecentGallery() {
       showLoader();
       try {
-        const latest = await fetchAPOD();
-        // If the latest APOD fetch fails, we can't proceed.
-        if (!latest || !latest.date) {
-          throw new Error('Could not fetch the latest APOD data.');
-        }
-        // Fetch the initial data for the gallery
-        const data = await fetchValidAPODs(latest.date, 9, 20);
-        // Store the fetched data so filters can use it
-        currentGalleryData = data;
+        // Get today's date
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const endDate = `${yyyy}-${mm}-${dd}`;
+        const startDateObj = new Date(endDate);
+        startDateObj.setDate(startDateObj.getDate() - 8);
+        const startDate = startDateObj.toISOString().split('T')[0];
+        // Fetch and cache the window
+        await fetchAPODWindow(startDate, endDate);
         // Render the gallery with the "All" filter by default
         applyFilter('all');
       } catch (e) {
-        // Display a user-friendly error message in the gallery
         document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load space images. Please try again later.</div>';
-        console.error('Error loading gallery:', e); // Log the actual error for debugging
+        console.error('Error loading gallery:', e);
       } finally {
-        hideLoader(); // Always hide loader, even if an error occurs
+        hideLoader();
       }
     }
     loadRecentGallery();
 
-    // Button click: fetch 9 valid entries from selected end date
+    // Button click: fetch 9-day window from selected start date
     const button = document.querySelector('.filters button');
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
@@ -286,18 +291,8 @@ function init() {
           alert("Please select a date range of 9 days or less.");
           return;
         }
-        showLoader();
-        try {
-          const data = await fetchValidAPODs(endDate, 9, 20);
-          currentGalleryData = data; // Store fetched data
-          applyFilter(currentFilter); // Render with the current filter
-        } catch (e) {
-          // Display a user-friendly error message in the gallery
-          document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images. Please try again.</div>';
-          console.error('Error fetching new data:', e); // Log the actual error for debugging
-        } finally {
-          hideLoader(); // Always hide loader, even if an error occurs
-        }
+        await fetchAPODWindow(startDate, endDate);
+        applyFilter(currentFilter);
       };
     }
 
@@ -341,90 +336,40 @@ function setupFilterButtons() {
   }
 }
 
-async function applyFilter(filter) {
-  // Check if we have data to filter
-  if (!currentGalleryData || currentGalleryData.length === 0) {
+function applyFilter(filter) {
+  // All filtering is done on the cachedWindow array
+  if (!cachedWindow || cachedWindow.length === 0) {
+    // Special case: if user wants videos but none in range, offer to fetch recent videos
+    if (filter === 'video' || filter === 'videos') {
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = `<div class="placeholder">No videos found in this range.<br><button id='findRecentVideosBtn' class='btn btn-primary mt-3'>Find Recent Videos</button></div>`;
+      // Add event listener for the button
+      const btn = document.getElementById('findRecentVideosBtn');
+      if (btn) btn.onclick = fetchRecentVideos;
+      return;
+    }
     renderGallery([]);
     return;
   }
-
-  // A map of functions for each filter type. This makes adding new filters easy.
+  // Map of filter functions
   const filterMap = {
-    // The 'all' filter simply returns all the data we've fetched.
     all: data => data,
-    // The 'image' filter returns only items that are images.
     image: data => data.filter(item => item.media_type === 'image'),
-    // Support both 'image' and 'images' for flexibility
     images: data => data.filter(item => item.media_type === 'image'),
-    // The 'video' filter is special. It ensures we show up to 9 videos,
-    // even if it means fetching more from the past.
-    video: async data => {
-      // First, find any videos in the currently loaded data.
-      let videos = data.filter(item => item.media_type === 'video');
-      
-      // If we already have 9 or more videos, we can just show them.
-      if (videos.length >= 9) {
-        return videos.slice(0, 9); // Return the first 9 videos.
-      }
-
-      // If we have fewer than 9, we need to fetch more to try and fill the gallery.
-      const endDateInput = document.getElementById('endDate');
-      const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
-      
-      // This function will fetch *only* videos until it has 9, or has tried for 180 days.
-      const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
-
-      // Combine the videos we already had with the new ones, ensuring no duplicates.
-      const combined = [...videos, ...moreVideos];
-      const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
-
-      return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
-    },
-    // Support both 'video' and 'videos' for flexibility
-    videos: async data => {
-      // First, find any videos in the currently loaded data.
-      let videos = data.filter(item => item.media_type === 'video');
-      
-      // If we already have 9 or more videos, we can just show them.
-      if (videos.length >= 9) {
-        return videos.slice(0, 9); // Return the first 9 videos.
-      }
-
-      // If we have fewer than 9, we need to fetch more to try and fill the gallery.
-      const endDateInput = document.getElementById('endDate');
-      const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
-      
-      // This function will fetch *only* videos until it has 9, or has tried for 180 days.
-      const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
-
-      // Combine the videos we already had with the new ones, ensuring no duplicates.
-      const combined = [...videos, ...moreVideos];
-      const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
-
-      return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
-    },
+    video: data => data.filter(item => item.media_type === 'video'),
+    videos: data => data.filter(item => item.media_type === 'video'),
   };
-
-  // Get the correct filter function from our map, or default to 'all'.
   const filterFn = filterMap[filter] || filterMap.all;
-
-  try {
-    // Because the 'video' and 'videos' filters can fetch new data, they are async operations.
-    // We show a loader while they work.
-    if (filter === 'video' || filter === 'videos') {
-      showLoader();
-      const filteredData = await filterFn(currentGalleryData);
-      hideLoader();
-      renderGallery(filteredData);
-    } else {
-      // For 'all', 'image', and 'images', the filtering is instant, so no loader is needed.
-      const filteredData = filterFn(currentGalleryData);
-      renderGallery(filteredData);
-    }
-  } catch (error) {
-    console.error('Error applying filter:', error);
-    hideLoader();
+  const filteredData = filterFn(cachedWindow);
+  // If user wants videos but none in cache, offer to fetch recent videos
+  if ((filter === 'video' || filter === 'videos') && filteredData.length === 0) {
+    const gallery = document.getElementById('gallery');
+    gallery.innerHTML = `<div class="placeholder">No videos found in this range.<br><button id='findRecentVideosBtn' class='btn btn-primary mt-3'>Find Recent Videos</button></div>`;
+    const btn = document.getElementById('findRecentVideosBtn');
+    if (btn) btn.onclick = fetchRecentVideos;
+    return;
   }
+  renderGallery(filteredData);
 }
 
 // --- GALLERY & MODAL RENDERING ---
@@ -576,20 +521,9 @@ function renderGallery(dataArray) {
   });
 }
 
-// Update modal visibility logic to use 'inert' instead of 'aria-hidden'
-function toggleModalVisibility(modal, isVisible) {
-  if (isVisible) {
-    modal.removeAttribute('inert');
-    modal.style.display = 'block';
-  } else {
-    modal.setAttribute('inert', '');
-    modal.style.display = 'none';
-  }
-}
-
 // Update modal show/hide logic
 function showBootstrapModal(item) {
-  const modal = document.getElementById('imageModal');
+  const modalElement = document.getElementById('imageModal');
   const modalLabel = document.getElementById('imageModalLabel');
   const modalImage = document.getElementById('modalImage');
   const modalVideoContainer = document.getElementById('modalVideoContainer');
@@ -604,35 +538,85 @@ function showBootstrapModal(item) {
     modalImage.alt = item.title;
     modalImage.style.display = 'block';
     modalVideoContainer.style.display = 'none';
+    modalVideo.src = '';
   } else if (item.media_type === 'video') {
     modalVideo.src = getYouTubeEmbedUrl(item.url, true);
     modalImage.style.display = 'none';
     modalVideoContainer.style.display = 'block';
   }
 
-  toggleModalVisibility(modal, true);
+  // Use Bootstrap's Modal API to show the modal
+  const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+  modal.show();
 
-  modal.addEventListener('hidden.bs.modal', () => {
+  // When the modal is hidden, clear the video src to stop playback
+  modalElement.addEventListener('hidden.bs.modal', () => {
     modalVideo.src = '';
-    toggleModalVisibility(modal, false);
   }, { once: true });
 }
 
-// Utility: Fetch up to 'count' valid APOD entries (image or video), going backward from a given end date
-async function fetchValidAPODs(endDate, count = 9, maxTries = 20, mediaType = 'any') {
-  const results = [];
-  let tries = 0;
-  let date = new Date(endDate);
-  while (results.length < count && tries < maxTries) {
-    const dateStr = date.toISOString().split('T')[0];
-    const apod = await fetchAPOD(dateStr);
-    if (apod && (mediaType === 'any' || apod.media_type === mediaType)) {
-      results.unshift(apod); // Add to start to keep chronological order
+// Utility: Fetch a 9-day window of APOD data in a single API call, with error handling and caching
+async function fetchAPODWindow(startDate, endDate) {
+  // Show the loader while fetching
+  showLoader();
+  try {
+    // Build the API URL for a date range, with thumbs for videos
+    const url = `https://api.nasa.gov/planetary/apod?api_key=${API_KEY}&start_date=${startDate}&end_date=${endDate}&thumbs=true`;
+    const response = await fetch(url);
+    if (response.status === 429) {
+      // Rate limit hit: show a user-friendly message
+      document.getElementById('gallery').innerHTML = '<div class="placeholder">You have reached the NASA API rate limit. Please wait a few minutes and try again.</div>';
+      return [];
     }
-    date.setDate(date.getDate() - 1);
-    tries++;
+    if (!response.ok) {
+      // Other network error
+      document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images. Please try again later.</div>';
+      return [];
+    }
+    const data = await response.json();
+    // Cache the result for filtering
+    cachedWindow = Array.isArray(data) ? data.reverse() : [];
+    return cachedWindow;
+  } catch (e) {
+    document.getElementById('gallery').innerHTML = '<div class="placeholder">Network error. Please try again later.</div>';
+    return [];
+  } finally {
+    hideLoader();
   }
-  return results;
+}
+
+// --- FIND RECENT VIDEOS FEATURE ---
+// This function fetches the most recent 60 days of APODs and shows only videos
+async function fetchRecentVideos() {
+  showLoader();
+  try {
+    // Calculate date range for last 60 days
+    const today = new Date();
+    const endDate = today.toISOString().split('T')[0];
+    const startDateObj = new Date();
+    startDateObj.setDate(today.getDate() - 59); // 60 days
+    const startDate = startDateObj.toISOString().split('T')[0];
+    // One API call for the whole window
+    const url = `https://api.nasa.gov/planetary/apod?api_key=${API_KEY}&start_date=${startDate}&end_date=${endDate}&thumbs=true`;
+    const response = await fetch(url);
+    if (response.status === 429) {
+      document.getElementById('gallery').innerHTML = '<div class="placeholder">You have reached the NASA API rate limit. Please wait a few minutes and try again.</div>';
+      return;
+    }
+    if (!response.ok) {
+      document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load videos. Please try again later.</div>';
+      return;
+    }
+    const data = await response.json();
+    // Filter for videos only, newest first
+    const videos = Array.isArray(data) ? data.filter(item => item.media_type === 'video').reverse() : [];
+    cachedWindow = videos;
+    renderGallery(videos);
+  } catch (e) {
+    document.getElementById('gallery').innerHTML = '<div class="placeholder">Network error. Please try again later.</div>';
+  } finally {
+    hideLoader();
+  }
 }
 
 // Utility: Validate date range (maxDays inclusive)
