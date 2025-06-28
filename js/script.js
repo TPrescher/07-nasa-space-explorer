@@ -25,6 +25,10 @@ const spaceFacts = [
 let factIndex = 0;
 let factInterval = null;
 
+// Global variables to store the current gallery data and active filter
+let currentGalleryData = [];
+let currentFilter = 'all'; // Default filter is 'all'
+
 // Utility: Fetch APOD data for a given date, with error handling
 function fetchAPOD(date) {
   // Build the API URL
@@ -61,15 +65,15 @@ function showRandomFact() {
   }
 }
 
-// Show the animated planet loader
+// Show the NASA logo loader
 function showLoader() {
-  const loader = document.getElementById("planet-loader");
+  const loader = document.getElementById("loadingBanner");
   if (loader) loader.style.display = "flex";
 }
 
-// Hide the animated planet loader
+// Hide the NASA logo loader
 function hideLoader() {
-  const loader = document.getElementById("planet-loader");
+  const loader = document.getElementById("loadingBanner");
   if (loader) loader.style.display = "none";
 }
 
@@ -201,12 +205,23 @@ function init() {
     showLoader();
     try {
       const latest = await fetchAPOD();
+      // If the latest APOD fetch fails, we can't proceed.
+      if (!latest || !latest.date) {
+        throw new Error('Could not fetch the latest APOD data.');
+      }
+      // Fetch the initial data for the gallery
       const data = await fetchValidAPODs(latest.date, 9, 20);
-      renderGallery(data);
+      // Store the fetched data so filters can use it
+      currentGalleryData = data;
+      // Render the gallery with the "All" filter by default
+      applyFilter('all');
     } catch (e) {
-      document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images.</div>';
+      // Display a user-friendly error message in the gallery
+      document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load space images. Please try again later.</div>';
+      console.error(e); // Log the actual error for debugging
+    } finally {
+      hideLoader(); // Always hide loader, even if an error occurs
     }
-    hideLoader();
   }
   loadRecentGallery();
 
@@ -226,11 +241,15 @@ function init() {
       showLoader();
       try {
         const data = await fetchValidAPODs(endDate, 9, 20);
-        renderGallery(data);
+        currentGalleryData = data; // Store fetched data
+        applyFilter(currentFilter); // Render with the current filter
       } catch (e) {
-        document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images.</div>';
+        // Display a user-friendly error message in the gallery
+        document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images. Please try again.</div>';
+        console.error(e); // Log the actual error for debugging
+      } finally {
+        hideLoader(); // Always hide loader, even if an error occurs
       }
-      hideLoader();
     };
   }
 
@@ -240,15 +259,158 @@ function init() {
   startFactCycle();
   // Setup theme toggle
   setupThemeToggle();
+  // Setup filter buttons
+  setupFilterButtons();
   // No need to call setEndDateToToday (handled above)
 }
 
 document.addEventListener('DOMContentLoaded', init);
 
+// --- FILTER LOGIC ---
+function setupFilterButtons() {
+  const filterButtons = document.querySelector('.filters-container .btn-group');
+  if (filterButtons) {
+    filterButtons.addEventListener('click', (e) => {
+      if (e.target.matches('button')) {
+        // Remove active class from all buttons
+        filterButtons.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+        // Add active class to the clicked button
+        e.target.classList.add('active');
+        // Get the filter from the button's ID
+        const filter = e.target.id.replace('filter', '').toLowerCase();
+        // Update the global currentFilter variable
+        currentFilter = filter;
+        // Apply the filter to the gallery
+        applyFilter(currentFilter);
+      }
+    });
+  }
+}
+
+async function applyFilter(filter) {
+  // Check if we have data to filter
+  if (!currentGalleryData || currentGalleryData.length === 0) {
+    console.log('No data to filter');
+    renderGallery([]);
+    return;
+  }
+
+  console.log(`Applying filter: ${filter}`);
+  console.log('Current gallery data:', currentGalleryData.map(item => ({ title: item.title, media_type: item.media_type })));
+
+  // A map of functions for each filter type. This makes adding new filters easy.
+  const filterMap = {
+    // The 'all' filter simply returns all the data we've fetched.
+    all: data => {
+      console.log('All filter: returning all data');
+      return data;
+    },
+    // The 'image' filter returns only items that are images.
+    image: data => {
+      const images = data.filter(item => item.media_type === 'image');
+      console.log(`Image filter: found ${images.length} images`);
+      return images;
+    },
+    // Support both 'image' and 'images' for flexibility
+    images: data => {
+      const images = data.filter(item => item.media_type === 'image');
+      console.log(`Images filter: found ${images.length} images`);
+      return images;
+    },
+    // The 'video' filter is special. It ensures we show up to 9 videos,
+    // even if it means fetching more from the past.
+    video: async data => {
+      console.log('Video filter: starting');
+      // First, find any videos in the currently loaded data.
+      let videos = data.filter(item => item.media_type === 'video');
+      console.log(`Video filter: found ${videos.length} videos in current data`);
+      
+      // If we already have 9 or more videos, we can just show them.
+      if (videos.length >= 9) {
+        console.log('Video filter: returning first 9 videos');
+        return videos.slice(0, 9); // Return the first 9 videos.
+      }
+
+      // If we have fewer than 9, we need to fetch more to try and fill the gallery.
+      const endDateInput = document.getElementById('endDate');
+      const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
+      console.log(`Video filter: fetching more videos from ${endDate}`);
+      
+      // This function will fetch *only* videos until it has 9, or has tried for 180 days.
+      const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
+      console.log(`Video filter: fetched ${moreVideos.length} additional videos`);
+
+      // Combine the videos we already had with the new ones, ensuring no duplicates.
+      const combined = [...videos, ...moreVideos];
+      const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
+      console.log(`Video filter: returning ${uniqueVideos.length} unique videos`);
+
+      return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
+    },
+    // Support both 'video' and 'videos' for flexibility
+    videos: async data => {
+      console.log('Videos filter: starting');
+      // First, find any videos in the currently loaded data.
+      let videos = data.filter(item => item.media_type === 'video');
+      console.log(`Videos filter: found ${videos.length} videos in current data`);
+      
+      // If we already have 9 or more videos, we can just show them.
+      if (videos.length >= 9) {
+        console.log('Videos filter: returning first 9 videos');
+        return videos.slice(0, 9); // Return the first 9 videos.
+      }
+
+      // If we have fewer than 9, we need to fetch more to try and fill the gallery.
+      const endDateInput = document.getElementById('endDate');
+      const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
+      console.log(`Videos filter: fetching more videos from ${endDate}`);
+      
+      // This function will fetch *only* videos until it has 9, or has tried for 180 days.
+      const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
+      console.log(`Videos filter: fetched ${moreVideos.length} additional videos`);
+
+      // Combine the videos we already had with the new ones, ensuring no duplicates.
+      const combined = [...videos, ...moreVideos];
+      const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
+      console.log(`Videos filter: returning ${uniqueVideos.length} unique videos`);
+
+      return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
+    },
+  };
+
+  // Get the correct filter function from our map, or default to 'all'.
+  const filterFn = filterMap[filter] || filterMap.all;
+
+  try {
+    // Because the 'video' and 'videos' filters can fetch new data, they are async operations.
+    // We show a loader while they work.
+    if (filter === 'video' || filter === 'videos') {
+      showLoader();
+      const filteredData = await filterFn(currentGalleryData);
+      console.log(`${filter} filter result:`, filteredData.map(item => ({ title: item.title, media_type: item.media_type })));
+      hideLoader();
+      renderGallery(filteredData);
+    } else {
+      // For 'all', 'image', and 'images', the filtering is instant, so no loader is needed.
+      const filteredData = filterFn(currentGalleryData);
+      console.log(`${filter} filter result:`, filteredData.map(item => ({ title: item.title, media_type: item.media_type })));
+      renderGallery(filteredData);
+    }
+  } catch (error) {
+    console.error('Error applying filter:', error);
+    hideLoader();
+  }
+}
+
 // --- GALLERY & MODAL RENDERING ---
 function renderGallery(dataArray) {
   const gallery = document.getElementById('gallery');
   gallery.innerHTML = '';
+  if (!dataArray || dataArray.length === 0) {
+    // Show a friendly message if no images/videos are available
+    gallery.innerHTML = '<div class="placeholder">No space photos found for this date range. Try another date!</div>';
+    return;
+  }
   dataArray.forEach(item => {
     const card = document.createElement('div');
     card.className = 'gallery-item col-12 col-sm-6 col-md-4 col-lg-3 p-0';
@@ -312,91 +474,62 @@ function renderGallery(dataArray) {
     card.appendChild(media);
     card.appendChild(title);
     card.appendChild(date);
-    // Click opens modal
+    // Click opens Bootstrap modal
     card.addEventListener('click', function() {
-      showModal(item);
+      showBootstrapModal(item);
     });
     gallery.appendChild(card);
   });
 }
 
-function showModal(item) {
-  const modal = document.getElementById('modal');
-  const modalContent = document.getElementById('modal-content');
-  if (!modal || !modalContent) return;
-  modalContent.innerHTML = '';
-  // Title
-  const title = document.createElement('h2');
-  title.textContent = item.title;
-  title.className = 'fw-bold mb-2';
-  title.style.fontFamily = "'Barlow', 'Helvetica Neue', Arial, sans-serif";
-  // Date
-  const date = document.createElement('p');
-  date.textContent = item.date;
-  date.className = 'mb-2';
-  date.style.fontWeight = 'bold';
-  // Media
-  let media;
-  if (item.media_type === 'image') {
-    media = document.createElement('img');
-    media.src = item.hdurl || item.url;
-    media.alt = item.title;
-    media.style.width = '100%';
-    media.style.maxHeight = '60vh';
-    media.style.objectFit = 'contain';
-    media.style.background = '#222';
-    media.style.borderRadius = '8px';
-  } else if (item.media_type === 'video') {
-    if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
-      media = document.createElement('iframe');
-      media.src = item.url;
-      media.width = '100%';
-      media.height = '400';
-      media.allowFullscreen = true;
-      media.style.border = 'none';
-      media.style.background = '#000';
-      media.style.borderRadius = '8px';
-    } else {
-      media = document.createElement('a');
-      media.href = item.url;
-      media.textContent = 'View Video';
-      media.target = '_blank';
-      media.style.display = 'block';
-      media.style.textAlign = 'center';
-      media.style.padding = '80px 0';
-      media.style.background = '#222';
-      media.style.color = '#fff';
-      media.style.borderRadius = '8px';
-    }
-  }
-  // Explanation
-  const explanation = document.createElement('p');
-  explanation.textContent = item.explanation;
-  explanation.className = 'mt-3';
-  // Add to modal
-  modalContent.appendChild(title);
-  modalContent.appendChild(date);
-  modalContent.appendChild(media);
-  modalContent.appendChild(explanation);
-  modal.style.display = 'block';
-}
+// Show Bootstrap 5 modal with NASA styling
+function showBootstrapModal(item) {
+  // Get references to modal elements
+  const modalLabel = document.getElementById('imageModalLabel');
+  const modalImage = document.getElementById('modalImage');
+  const modalVideoContainer = document.getElementById('modalVideoContainer');
+  const modalVideo = document.getElementById('modalVideo');
+  const modalDescription = document.getElementById('modalDescription');
 
-function hideModal() {
-  const modal = document.getElementById('modal');
-  const modalContent = document.getElementById('modal-content');
-  if (modal) modal.style.display = 'none';
-  if (modalContent) modalContent.innerHTML = '';
+  // Set common content
+  modalLabel.textContent = item.title;
+  modalDescription.textContent = item.explanation;
+
+  // Check media type to show image or video
+  if (item.media_type === 'image') {
+    // Configure for image
+    modalImage.src = item.hdurl || item.url;
+    modalImage.alt = item.title;
+    modalImage.style.display = 'block';
+    modalVideoContainer.style.display = 'none';
+  } else if (item.media_type === 'video') {
+    // Configure for video
+    modalVideo.src = item.url;
+    modalImage.style.display = 'none';
+    modalVideoContainer.style.display = 'block';
+  }
+
+  // Show modal using Bootstrap's JS API
+  const imageModal = document.getElementById('imageModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(imageModal);
+
+  // Add event listener to stop video when modal is hidden
+  imageModal.addEventListener('hidden.bs.modal', () => {
+    modalVideo.src = '';
+  }, { once: true }); // Use 'once' to avoid adding multiple listeners
+
+  modal.show();
 }
 
 // Utility: Fetch up to 'count' valid APOD entries (image or video), going backward from a given end date
-async function fetchValidAPODs(endDate, count = 9, maxTries = 20) {
+async function fetchValidAPODs(endDate, count = 9, maxTries = 20, mediaType = 'any') {
   const results = [];
   let tries = 0;
   let date = new Date(endDate);
   while (results.length < count && tries < maxTries) {
     const dateStr = date.toISOString().split('T')[0];
     const apod = await fetchAPOD(dateStr);
-    if (apod && (apod.media_type === 'image' || apod.media_type === 'video')) {
+    if (apod && (mediaType === 'any' || apod.media_type === mediaType)) {
       results.unshift(apod); // Add to start to keep chronological order
     }
     date.setDate(date.getDate() - 1);

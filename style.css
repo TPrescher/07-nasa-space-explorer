@@ -232,64 +232,33 @@ body.light-mode .space-fact {
   box-shadow: 0 2px 8px rgba(11,61,145,0.08);
 }
 
-/* Modal styles */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: auto;
-  background: rgba(0,0,0,0.92) !important;
-  justify-content: center;
-  align-items: center;
-  box-shadow: none !important;
-  outline: none !important;
-  border: none !important;
-}
-.modal-content {
-  background: var(--nasa-card-light);
-  color: var(--nasa-primary-dark);
-  margin: 60px auto;
-  padding: 32px 24px 24px 24px;
-  border-radius: 16px;
-  max-width: 600px;
-  min-width: 320px;
+/* NASA Bootstrap Modal Customization */
+.nasa-modal-content {
+  background: #181c23 !important;
+  color: #fff !important;
+  border-radius: 18px;
   box-shadow: 0 8px 32px rgba(11,61,145,0.18);
-  position: relative;
-  transition: background 0.3s, color 0.3s;
-  border: none !important;
-  outline: none !important;
+  border: 2px solid #105bd8;
 }
-body.dark-mode .modal-content {
+.nasa-modal-content .modal-header {
+  background: transparent;
+  border-bottom: none;
+}
+.nasa-modal-content .modal-title {
+  color: #fff;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: bold;
+}
+.nasa-modal-content .btn-close {
+  filter: invert(1) grayscale(1);
+}
+.nasa-modal-content .modal-body {
   background: #181c23;
-  color: #fff;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.28);
 }
-.modal-content img, .modal-content iframe {
-  display: block;
-  margin: 0 auto 18px auto;
-  border-radius: 8px;
-  max-width: 100%;
-  background: #222;
-}
-.modal-close {
-  position: fixed;
-  top: 32px;
-  right: 48px;
-  font-size: 2.2em;
-  color: #fff;
-  cursor: pointer;
-  z-index: 1100;
-  background: none;
-  border: none;
-  outline: none;
-  transition: color 0.2s;
-}
-.modal-close:hover {
-  color: #ff3b3b;
+.nasa-modal-content img {
+  background: #181c23;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.18);
 }
 
 /* Placeholder and loading styles */
@@ -307,50 +276,78 @@ body.dark-mode .modal-content {
   z-index: 1;
 }
 
-/* Planet loader styles */
-.planet-loader {
-  display: none;
+/* NASA Logo Loader */
+.logo-loader {
+  display: none; /* Hidden by default */
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: #fff;
-  font-family: 'Segoe UI', sans-serif;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(24, 28, 35, 0.85); /* Dark, semi-transparent background */
+  backdrop-filter: blur(5px); /* Frosted glass effect */
+  z-index: 9999;
 }
 
-.planet {
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle at 30% 30%, #00bfff, #001f3f);
-  border-radius: 50%;
+.spinner-wrapper {
   position: relative;
-  animation: spin 2s linear infinite;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ring {
-  width: 90px;
-  height: 90px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+/* The circular container for the logo */
+.logo-circle {
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.logo-circle img {
+  width: 100%;
+  height: auto;
+}
+
+/* The dashed orbit spinner */
+.spinner-orbit {
   position: absolute;
-  top: -15px;
-  left: -15px;
-  animation: orbit 2s linear infinite reverse;
+  width: 150px;
+  height: 150px;
+  border: 3px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: orbit 10s linear infinite;
 }
 
-.loading-text {
-  margin-top: 1rem;
-  font-size: 1rem;
-  color: #ccc;
-  text-align: center;
+.loading-caption {
+  margin-top: 1.5rem;
+  font-size: 1.2rem;
+  color: var(--nasa-gray);
+  font-family: 'Barlow', sans-serif;
+  font-weight: 500;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
+/* Keyframe Animations */
 @keyframes orbit {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Style for the active filter button */
+.filters-container .btn.active {
+  background-color: var(--nasa-primary);
+  color: var(--nasa-white);
+  border-color: var(--nasa-primary);
+  font-weight: bold;
 }

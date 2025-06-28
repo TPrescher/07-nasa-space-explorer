@@ -17,25 +17,53 @@
       <img src="img/nasa-worm-logo.png" alt="NASA Logo" class="logo mb-2" />
       <h1 class="fw-bold">Space Explorer</h1>
     </header>
+    <div class="filters-container text-center mb-4">
+      <div class="btn-group" role="group" aria-label="Media Filter">
+        <button type="button" class="btn btn-outline-light active" id="filterAll">All</button>
+        <button type="button" class="btn btn-outline-light" id="filterImages">Images</button>
+        <button type="button" class="btn btn-outline-light" id="filterVideos">Videos</button>
+      </div>
+    </div>
     <div class="filters row justify-content-center mb-4">
       <div class="col-auto"><input type="date" id="startDate" class="form-control" /></div>
       <div class="col-auto"><input type="date" id="endDate" class="form-control" /></div>
       <div class="col-auto"><button class="btn btn-primary">Get Space Images</button></div>
     </div>
-    <div id="planet-loader" class="planet-loader">
-      <div class="planet">
-        <div class="ring"></div>
+    <div id="loadingBanner" class="logo-loader">
+      <div class="spinner-wrapper">
+        <div class="spinner-orbit"></div>
+        <div class="logo-circle">
+          <img src="img/NASA-Logo-Large.jpg" alt="NASA Logo" />
+        </div>
       </div>
-      <p class="loading-text">Exploring the universe...</p>
+      <p class="loading-caption">🔭 Loading space photos...</p>
     </div>
     <div id="gallery" class="gallery row g-4 justify-content-center">
       <!-- Gallery images will be rendered here -->
     </div>
   </div>
-  <div id="modal" class="modal" tabindex="-1">
-    <div id="modal-content" class="modal-content"></div>
-    <span id="modal-close" class="modal-close">✖</span>
+
+  <!-- Bootstrap 5 Modal for image details -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content nasa-modal-content bg-dark text-white">
+        <div class="modal-header border-0">
+          <h2 class="modal-title fw-bold" id="imageModalLabel"></h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="modalImage" src="" alt="NASA APOD" class="img-fluid rounded mb-3" style="max-height:60vh; background:#181c23;" />
+          <div id="modalVideoContainer" class="ratio ratio-16x9" style="display:none;">
+            <iframe id="modalVideo" src="" title="NASA Video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>
+          <p id="modalDescription" class="mt-3"></p>
+        </div>
+      </div>
+    </div>
   </div>
+  <!-- End Bootstrap Modal -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/dateRange.js"></script>
   <script src="js/script.js"></script>
   <script src="js/star-bg.js"></script>
