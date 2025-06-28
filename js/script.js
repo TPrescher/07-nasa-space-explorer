@@ -56,6 +56,43 @@ function getConsecutiveDates(endDate, count = 9) {
   return dates;
 }
 
+// Utility: Extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url) {
+  // Handle various YouTube URL formats:
+  // https://www.youtube.com/watch?v=VIDEO_ID
+  // https://youtu.be/VIDEO_ID
+  // https://www.youtube.com/embed/VIDEO_ID
+  // https://www.youtube.com/v/VIDEO_ID
+  
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+// Utility: Get YouTube thumbnail URL for a video ID
+function getYouTubeThumbnail(videoId) {
+  // Use hqdefault for high quality thumbnail (480x360)
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+// Utility: Convert YouTube URL to embed URL with autoplay
+function getYouTubeEmbedUrl(url, autoplay = false) {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return url;
+  
+  const autoplayParam = autoplay ? '?autoplay=1' : '';
+  return `https://www.youtube.com/embed/${videoId}${autoplayParam}`;
+}
+
 // Show a random space fact in #space-fact
 function showRandomFact() {
   const factDiv = document.getElementById('space-fact');
@@ -173,95 +210,112 @@ function setupDateInputsWithNote(startInput, endInput) {
 
 // --- MAIN INIT ---
 function init() {
-  // Set Google Font globally
-  document.body.style.fontFamily = "'Barlow', 'Helvetica Neue', Arial, sans-serif";
+  try {
+    console.log('Initializing NASA Space Explorer...');
+    
+    // Set Google Font globally
+    document.body.style.fontFamily = "'Barlow', 'Helvetica Neue', Arial, sans-serif";
 
-  // Modal close events
-  const modal = document.getElementById('modal');
-  const modalClose = document.getElementById('modal-close');
-  if (modalClose) modalClose.onclick = hideModal;
-  if (modal) {
-    modal.onclick = function(event) {
-      if (event.target === modal) hideModal();
-    };
-  }
-
-  // Date input setup (if using dateRange.js)
-  if (typeof setupDateInputs === 'function') {
-    setupDateInputs(
-      document.getElementById('startDate'),
-      document.getElementById('endDate')
-    );
-  }
-  // Use improved date picker setup
-  const startInput = document.getElementById('startDate');
-  const endInput = document.getElementById('endDate');
-  if (startInput && endInput) {
-    setupDateInputsWithNote(startInput, endInput);
-  }
-
-  // On page load, fetch most recent APOD, then 9 valid entries
-  async function loadRecentGallery() {
-    showLoader();
-    try {
-      const latest = await fetchAPOD();
-      // If the latest APOD fetch fails, we can't proceed.
-      if (!latest || !latest.date) {
-        throw new Error('Could not fetch the latest APOD data.');
-      }
-      // Fetch the initial data for the gallery
-      const data = await fetchValidAPODs(latest.date, 9, 20);
-      // Store the fetched data so filters can use it
-      currentGalleryData = data;
-      // Render the gallery with the "All" filter by default
-      applyFilter('all');
-    } catch (e) {
-      // Display a user-friendly error message in the gallery
-      document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load space images. Please try again later.</div>';
-      console.error(e); // Log the actual error for debugging
-    } finally {
-      hideLoader(); // Always hide loader, even if an error occurs
+    // Modal close events
+    const modal = document.getElementById('imageModal');
+    const modalClose = document.querySelector('.btn-close');
+    if (modalClose) {
+      modalClose.onclick = function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('imageModal'));
+        if (modal) modal.hide();
+      };
     }
-  }
-  loadRecentGallery();
+    if (modal) {
+      modal.onclick = function(event) {
+        if (event.target === modal) {
+          const modalInstance = bootstrap.Modal.getInstance(modal);
+          if (modalInstance) modalInstance.hide();
+        }
+      };
+    }
 
-  // Button click: fetch 9 valid entries from selected end date
-  const button = document.querySelector('.filters button');
-  const startDateInput = document.getElementById('startDate');
-  const endDateInput = document.getElementById('endDate');
-  if (button && endDateInput && startDateInput) {
-    button.onclick = async function() {
-      const startDate = startDateInput.value;
-      const endDate = endDateInput.value;
-      if (!startDate || !endDate) return;
-      if (!isValidDateRange(startDate, endDate, 9)) {
-        alert("Please select a date range of 9 days or less.");
-        return;
-      }
+    // Date input setup (if using dateRange.js)
+    if (typeof setupDateInputs === 'function') {
+      setupDateInputs(
+        document.getElementById('startDate'),
+        document.getElementById('endDate')
+      );
+    }
+    // Use improved date picker setup
+    const startInput = document.getElementById('startDate');
+    const endInput = document.getElementById('endDate');
+    if (startInput && endInput) {
+      setupDateInputsWithNote(startInput, endInput);
+    }
+
+    // On page load, fetch most recent APOD, then 9 valid entries
+    async function loadRecentGallery() {
       showLoader();
       try {
-        const data = await fetchValidAPODs(endDate, 9, 20);
-        currentGalleryData = data; // Store fetched data
-        applyFilter(currentFilter); // Render with the current filter
+        const latest = await fetchAPOD();
+        // If the latest APOD fetch fails, we can't proceed.
+        if (!latest || !latest.date) {
+          throw new Error('Could not fetch the latest APOD data.');
+        }
+        // Fetch the initial data for the gallery
+        const data = await fetchValidAPODs(latest.date, 9, 20);
+        // Store the fetched data so filters can use it
+        currentGalleryData = data;
+        // Render the gallery with the "All" filter by default
+        applyFilter('all');
       } catch (e) {
         // Display a user-friendly error message in the gallery
-        document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images. Please try again.</div>';
-        console.error(e); // Log the actual error for debugging
+        document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load space images. Please try again later.</div>';
+        console.error('Error loading gallery:', e); // Log the actual error for debugging
       } finally {
         hideLoader(); // Always hide loader, even if an error occurs
       }
-    };
-  }
+    }
+    loadRecentGallery();
 
-  // Start in dark mode
-  setTheme('dark');
-  // Start cycling facts
-  startFactCycle();
-  // Setup theme toggle
-  setupThemeToggle();
-  // Setup filter buttons
-  setupFilterButtons();
-  // No need to call setEndDateToToday (handled above)
+    // Button click: fetch 9 valid entries from selected end date
+    const button = document.querySelector('.filters button');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    if (button && endDateInput && startDateInput) {
+      button.onclick = async function() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        if (!startDate || !endDate) return;
+        if (!isValidDateRange(startDate, endDate, 9)) {
+          alert("Please select a date range of 9 days or less.");
+          return;
+        }
+        showLoader();
+        try {
+          const data = await fetchValidAPODs(endDate, 9, 20);
+          currentGalleryData = data; // Store fetched data
+          applyFilter(currentFilter); // Render with the current filter
+        } catch (e) {
+          // Display a user-friendly error message in the gallery
+          document.getElementById('gallery').innerHTML = '<div class="placeholder">Failed to load images. Please try again.</div>';
+          console.error('Error fetching new data:', e); // Log the actual error for debugging
+        } finally {
+          hideLoader(); // Always hide loader, even if an error occurs
+        }
+      };
+    }
+
+    // Start in dark mode
+    setTheme('dark');
+    // Start cycling facts
+    startFactCycle();
+    // Setup theme toggle
+    setupThemeToggle();
+    // Setup filter buttons
+    setupFilterButtons();
+    
+    console.log('NASA Space Explorer initialized successfully!');
+  } catch (error) {
+    console.error('Critical error during initialization:', error);
+    // Show a basic error message if everything fails
+    document.body.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Error loading NASA Space Explorer. Please refresh the page.</div>';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -290,89 +344,62 @@ function setupFilterButtons() {
 async function applyFilter(filter) {
   // Check if we have data to filter
   if (!currentGalleryData || currentGalleryData.length === 0) {
-    console.log('No data to filter');
     renderGallery([]);
     return;
   }
 
-  console.log(`Applying filter: ${filter}`);
-  console.log('Current gallery data:', currentGalleryData.map(item => ({ title: item.title, media_type: item.media_type })));
-
   // A map of functions for each filter type. This makes adding new filters easy.
   const filterMap = {
     // The 'all' filter simply returns all the data we've fetched.
-    all: data => {
-      console.log('All filter: returning all data');
-      return data;
-    },
+    all: data => data,
     // The 'image' filter returns only items that are images.
-    image: data => {
-      const images = data.filter(item => item.media_type === 'image');
-      console.log(`Image filter: found ${images.length} images`);
-      return images;
-    },
+    image: data => data.filter(item => item.media_type === 'image'),
     // Support both 'image' and 'images' for flexibility
-    images: data => {
-      const images = data.filter(item => item.media_type === 'image');
-      console.log(`Images filter: found ${images.length} images`);
-      return images;
-    },
+    images: data => data.filter(item => item.media_type === 'image'),
     // The 'video' filter is special. It ensures we show up to 9 videos,
     // even if it means fetching more from the past.
     video: async data => {
-      console.log('Video filter: starting');
       // First, find any videos in the currently loaded data.
       let videos = data.filter(item => item.media_type === 'video');
-      console.log(`Video filter: found ${videos.length} videos in current data`);
       
       // If we already have 9 or more videos, we can just show them.
       if (videos.length >= 9) {
-        console.log('Video filter: returning first 9 videos');
         return videos.slice(0, 9); // Return the first 9 videos.
       }
 
       // If we have fewer than 9, we need to fetch more to try and fill the gallery.
       const endDateInput = document.getElementById('endDate');
       const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
-      console.log(`Video filter: fetching more videos from ${endDate}`);
       
       // This function will fetch *only* videos until it has 9, or has tried for 180 days.
       const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
-      console.log(`Video filter: fetched ${moreVideos.length} additional videos`);
 
       // Combine the videos we already had with the new ones, ensuring no duplicates.
       const combined = [...videos, ...moreVideos];
       const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
-      console.log(`Video filter: returning ${uniqueVideos.length} unique videos`);
 
       return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
     },
     // Support both 'video' and 'videos' for flexibility
     videos: async data => {
-      console.log('Videos filter: starting');
       // First, find any videos in the currently loaded data.
       let videos = data.filter(item => item.media_type === 'video');
-      console.log(`Videos filter: found ${videos.length} videos in current data`);
       
       // If we already have 9 or more videos, we can just show them.
       if (videos.length >= 9) {
-        console.log('Videos filter: returning first 9 videos');
         return videos.slice(0, 9); // Return the first 9 videos.
       }
 
       // If we have fewer than 9, we need to fetch more to try and fill the gallery.
       const endDateInput = document.getElementById('endDate');
       const endDate = endDateInput ? endDateInput.value : new Date().toISOString().split('T')[0];
-      console.log(`Videos filter: fetching more videos from ${endDate}`);
       
       // This function will fetch *only* videos until it has 9, or has tried for 180 days.
       const moreVideos = await fetchValidAPODs(endDate, 9, 180, 'video');
-      console.log(`Videos filter: fetched ${moreVideos.length} additional videos`);
 
       // Combine the videos we already had with the new ones, ensuring no duplicates.
       const combined = [...videos, ...moreVideos];
       const uniqueVideos = Array.from(new Map(combined.map(v => [v.url, v])).values());
-      console.log(`Videos filter: returning ${uniqueVideos.length} unique videos`);
 
       return uniqueVideos.slice(0, 9); // Return up to 9 unique videos.
     },
@@ -387,13 +414,11 @@ async function applyFilter(filter) {
     if (filter === 'video' || filter === 'videos') {
       showLoader();
       const filteredData = await filterFn(currentGalleryData);
-      console.log(`${filter} filter result:`, filteredData.map(item => ({ title: item.title, media_type: item.media_type })));
       hideLoader();
       renderGallery(filteredData);
     } else {
       // For 'all', 'image', and 'images', the filtering is instant, so no loader is needed.
       const filteredData = filterFn(currentGalleryData);
-      console.log(`${filter} filter result:`, filteredData.map(item => ({ title: item.title, media_type: item.media_type })));
       renderGallery(filteredData);
     }
   } catch (error) {
@@ -433,30 +458,99 @@ function renderGallery(dataArray) {
       media.style.display = 'block';
     } else if (item.media_type === 'video') {
       if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
+        // Create container for YouTube thumbnail with play overlay
         media = document.createElement('div');
         media.style.position = 'relative';
         media.style.height = '220px';
-        media.style.background = '#000';
-        const playIcon = document.createElement('span');
-        playIcon.textContent = '▶';
-        playIcon.style.position = 'absolute';
-        playIcon.style.top = '50%';
-        playIcon.style.left = '50%';
-        playIcon.style.transform = 'translate(-50%, -50%)';
+        media.style.overflow = 'hidden';
+        media.style.borderRadius = '12px 12px 0 0';
+        media.style.cursor = 'pointer';
+        
+        // Get YouTube video ID and create thumbnail
+        const videoId = getYouTubeVideoId(item.url);
+        if (videoId) {
+          const thumbnail = document.createElement('img');
+          thumbnail.src = getYouTubeThumbnail(videoId);
+          thumbnail.alt = `${item.title} - Video Thumbnail`;
+          thumbnail.style.width = '100%';
+          thumbnail.style.height = '100%';
+          thumbnail.style.objectFit = 'cover';
+          thumbnail.style.display = 'block';
+          
+          // Add error handling for failed thumbnail loads
+          thumbnail.onerror = function() {
+            // Fallback to a gradient background if thumbnail fails
+            media.style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
+            thumbnail.style.display = 'none';
+          };
+          
+          media.appendChild(thumbnail);
+        } else {
+          // Fallback for invalid YouTube URLs
+          media.style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
+        }
+        
+        // Create play button overlay
+        const playOverlay = document.createElement('div');
+        playOverlay.style.position = 'absolute';
+        playOverlay.style.top = '0';
+        playOverlay.style.left = '0';
+        playOverlay.style.width = '100%';
+        playOverlay.style.height = '100%';
+        playOverlay.style.display = 'flex';
+        playOverlay.style.alignItems = 'center';
+        playOverlay.style.justifyContent = 'center';
+        playOverlay.style.background = 'rgba(0, 0, 0, 0.4)';
+        playOverlay.style.transition = 'background 0.3s ease';
+        
+        const playIcon = document.createElement('div');
+        playIcon.innerHTML = '▶';
         playIcon.style.fontSize = '48px';
         playIcon.style.color = '#fff';
-        media.appendChild(playIcon);
+        playIcon.style.textShadow = '0 2px 4px rgba(0,0,0,0.5)';
+        playIcon.style.transform = 'translateX(4px)'; // Slight offset for visual balance
+        
+        playOverlay.appendChild(playIcon);
+        media.appendChild(playOverlay);
+        
+        // Add hover effect
+        media.addEventListener('mouseenter', () => {
+          playOverlay.style.background = 'rgba(0, 0, 0, 0.6)';
+          playIcon.style.transform = 'translateX(4px) scale(1.1)';
+        });
+        
+        media.addEventListener('mouseleave', () => {
+          playOverlay.style.background = 'rgba(0, 0, 0, 0.4)';
+          playIcon.style.transform = 'translateX(4px) scale(1)';
+        });
+        
       } else {
-        media = document.createElement('a');
-        media.href = item.url;
-        media.textContent = 'View Video';
-        media.target = '_blank';
+        // Non-YouTube videos: show generic video placeholder
+        media = document.createElement('div');
         media.style.display = 'block';
         media.style.textAlign = 'center';
-        media.style.padding = '80px 0';
-        media.style.background = '#222';
+        media.style.padding = '80px 20px';
+        media.style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
         media.style.color = '#fff';
         media.style.borderRadius = '12px 12px 0 0';
+        media.style.height = '220px';
+        media.style.display = 'flex';
+        media.style.flexDirection = 'column';
+        media.style.alignItems = 'center';
+        media.style.justifyContent = 'center';
+        
+        const videoIcon = document.createElement('div');
+        videoIcon.innerHTML = '🎥';
+        videoIcon.style.fontSize = '32px';
+        videoIcon.style.marginBottom = '10px';
+        
+        const videoText = document.createElement('div');
+        videoText.textContent = 'External Video';
+        videoText.style.fontSize = '14px';
+        videoText.style.opacity = '0.8';
+        
+        media.appendChild(videoIcon);
+        media.appendChild(videoText);
       }
     }
     // Title and date
@@ -504,7 +598,14 @@ function showBootstrapModal(item) {
     modalVideoContainer.style.display = 'none';
   } else if (item.media_type === 'video') {
     // Configure for video
-    modalVideo.src = item.url;
+    let videoUrl = item.url;
+    
+    // If it's a YouTube video, convert to embed URL with autoplay
+    if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
+      videoUrl = getYouTubeEmbedUrl(item.url, true); // Enable autoplay
+    }
+    
+    modalVideo.src = videoUrl;
     modalImage.style.display = 'none';
     modalVideoContainer.style.display = 'block';
   }
