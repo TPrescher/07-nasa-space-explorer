@@ -5,17 +5,70 @@
   padding: 0;
 }
 
+/* Google Fonts */
+body, h1, h2, h3, h4, h5, h6, .site-header, .space-fact {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+/* NASA Theme Variables */
+:root {
+  --nasa-primary: #105bd8;
+  --nasa-primary-dark: #0b3d91;
+  --nasa-gray: #e1e4e5;
+  --nasa-white: #fff;
+  --nasa-black: #222;
+  --nasa-bg-light: #f1f1f1;
+  --nasa-bg-dark: #181c23;
+  --nasa-card-dark: #23272f;
+  --nasa-card-light: #fff;
+  --nasa-text-light: #fff;
+  --nasa-text-dark: #0b3d91;
+  --nasa-text-gray: #bbb;
+}
+
 /* Base page styles */
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Public Sans', 'Helvetica', 'Source Sans Pro', Arial, sans-serif;
   background-color: #f1f1f1;
+  color: #0b3d91;
   padding: 20px;
+}
+
+/* Light and dark mode styles */
+body.light-mode {
+  background: var(--nasa-bg-light) !important;
+  color: var(--nasa-text-dark) !important;
+}
+body.dark-mode {
+  background: var(--nasa-bg-dark) !important;
+  color: var(--nasa-text-light) !important;
+}
+
+#star-bg {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
+}
+.star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.8;
+  box-shadow: 0 0 6px 2px #fff8;
+  animation: twinkle 2.5s infinite alternate;
+}
+@keyframes twinkle {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 /* Centered container */
 .container {
   max-width: 1200px;
   margin: 0 auto;
+  background: transparent;
 }
 
 /* Header */
@@ -101,33 +154,33 @@ button:hover {
   flex: 1 1 100%;  /* full width by default */
   min-width: 280px;
   max-width: 500px;
-  background: white;
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  background: var(--nasa-card-light);
+  color: var(--nasa-primary-dark);
+  border: 1px solid var(--nasa-gray);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(11,61,145,0.08);
+  transition: transform 0.3s, background 0.3s, color 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  padding: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
-
-/* Three columns on wider screens */
-@media (min-width: 1000px) {
-  .gallery-item {
-    flex: 0 1 31%;
-  }
+body.dark-mode .gallery-item {
+  background: var(--nasa-card-dark);
+  color: var(--nasa-text-light);
+  border: 1px solid #333;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.18);
 }
-
+.gallery-item:hover {
+  transform: scale(1.04);
+  z-index: 2;
+  box-shadow: 0 8px 32px rgba(11,61,145,0.18);
+}
 .gallery-item img {
   width: 100%;
-  height: 200px;
+  height: 220px;
   object-fit: cover;
-  border-radius: 4px;
-}
-
-.gallery-item p {
-  margin-top: 10px;
-  padding: 5px;
-  font-size: 14px;
+  border-radius: 12px 12px 0 0;
+  display: block;
 }
 
 /* Placeholder content */
@@ -135,10 +188,169 @@ button:hover {
   flex: 1 1 100%;
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--nasa-text-gray);
+  background: transparent;
 }
 
 .placeholder-icon {
   font-size: 48px;
   margin-bottom: 20px;
+}
+
+/* Space fact box */
+.space-fact {
+  background: #111;
+  color: #fff;
+  padding: 18px 24px;
+  border-radius: 10px;
+  font-size: 1.15em;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  letter-spacing: 0.01em;
+}
+body.light-mode .space-fact {
+  background: #fff;
+  color: #0b3d91;
+  box-shadow: 0 2px 16px rgba(11,61,145,0.08);
+}
+
+/* Loading indicator */
+#loading {
+  background: #fff;
+  color: #0b3d91;
+  font-weight: bold;
+  font-size: 1.2em;
+  border-radius: 8px;
+  margin: 10px auto;
+  padding: 12px 0;
+  width: 220px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(11,61,145,0.08);
+}
+
+/* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background: rgba(0,0,0,0.92) !important;
+  justify-content: center;
+  align-items: center;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+}
+.modal-content {
+  background: var(--nasa-card-light);
+  color: var(--nasa-primary-dark);
+  margin: 60px auto;
+  padding: 32px 24px 24px 24px;
+  border-radius: 16px;
+  max-width: 600px;
+  min-width: 320px;
+  box-shadow: 0 8px 32px rgba(11,61,145,0.18);
+  position: relative;
+  transition: background 0.3s, color 0.3s;
+  border: none !important;
+  outline: none !important;
+}
+body.dark-mode .modal-content {
+  background: #181c23;
+  color: #fff;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+}
+.modal-content img, .modal-content iframe {
+  display: block;
+  margin: 0 auto 18px auto;
+  border-radius: 8px;
+  max-width: 100%;
+  background: #222;
+}
+.modal-close {
+  position: fixed;
+  top: 32px;
+  right: 48px;
+  font-size: 2.2em;
+  color: #fff;
+  cursor: pointer;
+  z-index: 1100;
+  background: none;
+  border: none;
+  outline: none;
+  transition: color 0.2s;
+}
+.modal-close:hover {
+  color: #ff3b3b;
+}
+
+/* Placeholder and loading styles */
+.placeholder {
+  flex: 1 1 100%;
+  text-align: center;
+  padding: 40px;
+  color: var(--nasa-text-gray);
+  background: transparent;
+}
+
+/* Make sure main content is above the stars */
+.container, header, main, .site-header, .filters, #gallery, #modal {
+  position: relative;
+  z-index: 1;
+}
+
+/* Planet loader styles */
+.planet-loader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.planet {
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle at 30% 30%, #00bfff, #001f3f);
+  border-radius: 50%;
+  position: relative;
+  animation: spin 2s linear infinite;
+}
+
+.ring {
+  width: 90px;
+  height: 90px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  animation: orbit 2s linear infinite reverse;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  font-size: 1rem;
+  color: #ccc;
+  text-align: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
