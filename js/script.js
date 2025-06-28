@@ -576,50 +576,46 @@ function renderGallery(dataArray) {
   });
 }
 
-// Show Bootstrap 5 modal with NASA styling
+// Update modal visibility logic to use 'inert' instead of 'aria-hidden'
+function toggleModalVisibility(modal, isVisible) {
+  if (isVisible) {
+    modal.removeAttribute('inert');
+    modal.style.display = 'block';
+  } else {
+    modal.setAttribute('inert', '');
+    modal.style.display = 'none';
+  }
+}
+
+// Update modal show/hide logic
 function showBootstrapModal(item) {
-  // Get references to modal elements
+  const modal = document.getElementById('imageModal');
   const modalLabel = document.getElementById('imageModalLabel');
   const modalImage = document.getElementById('modalImage');
   const modalVideoContainer = document.getElementById('modalVideoContainer');
   const modalVideo = document.getElementById('modalVideo');
   const modalDescription = document.getElementById('modalDescription');
 
-  // Set common content
   modalLabel.textContent = item.title;
   modalDescription.textContent = item.explanation;
 
-  // Check media type to show image or video
   if (item.media_type === 'image') {
-    // Configure for image
     modalImage.src = item.hdurl || item.url;
     modalImage.alt = item.title;
     modalImage.style.display = 'block';
     modalVideoContainer.style.display = 'none';
   } else if (item.media_type === 'video') {
-    // Configure for video
-    let videoUrl = item.url;
-    
-    // If it's a YouTube video, convert to embed URL with autoplay
-    if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
-      videoUrl = getYouTubeEmbedUrl(item.url, true); // Enable autoplay
-    }
-    
-    modalVideo.src = videoUrl;
+    modalVideo.src = getYouTubeEmbedUrl(item.url, true);
     modalImage.style.display = 'none';
     modalVideoContainer.style.display = 'block';
   }
 
-  // Show modal using Bootstrap's JS API
-  const imageModal = document.getElementById('imageModal');
-  const modal = bootstrap.Modal.getOrCreateInstance(imageModal);
+  toggleModalVisibility(modal, true);
 
-  // Add event listener to stop video when modal is hidden
-  imageModal.addEventListener('hidden.bs.modal', () => {
+  modal.addEventListener('hidden.bs.modal', () => {
     modalVideo.src = '';
-  }, { once: true }); // Use 'once' to avoid adding multiple listeners
-
-  modal.show();
+    toggleModalVisibility(modal, false);
+  }, { once: true });
 }
 
 // Utility: Fetch up to 'count' valid APOD entries (image or video), going backward from a given end date
