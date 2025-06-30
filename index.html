@@ -12,7 +12,12 @@
   <div id="star-bg"></div>
   <div class="container position-relative pt-4">
     <button id="theme-toggle" class="btn btn-outline-light position-absolute top-0 end-0 m-3">Light</button>
-    <div id="space-fact" class="space-fact text-center mb-4"></div>
+    
+    <!-- Space Fact Box using Bootstrap Card for NASA branding -->
+    <div id="space-fact-container" class="card bg-dark text-light shadow-sm mb-4 border-primary" style="max-width: 520px; margin: 0 auto; border-width:2px;">
+      <div id="space-fact" class="card-body text-center" style="font-size: 1.1em; letter-spacing: 0.01em;"></div>
+    </div>
+
     <header class="site-header text-center mb-4">
       <img src="img/nasa-worm-logo.png" alt="NASA Logo" class="logo mb-2" />
       <h1 class="fw-bold">Space Explorer</h1>
