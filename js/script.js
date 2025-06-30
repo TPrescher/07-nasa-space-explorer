@@ -82,8 +82,9 @@ function getYouTubeEmbedUrl(url, autoplay = false) {
   const videoId = getYouTubeVideoId(url);
   if (!videoId) return url;
   
-  const autoplayParam = autoplay ? '?autoplay=1' : '';
-  return `https://www.youtube.com/embed/${videoId}${autoplayParam}`;
+  const autoplayParam = autoplay ? '?autoplay=1&' : '?';
+  // Correctly construct the URL with fs=1 to enable the fullscreen button
+  return `https://www.youtube.com/embed/${videoId}${autoplayParam}fs=1`;
 }
 
 // Show a random space fact in #space-fact
@@ -522,15 +523,27 @@ function showBootstrapModal(item) {
   modalLabel.textContent = item.title;
   modalDescription.textContent = item.explanation;
 
+  // Clear previous content
+  modalImage.style.display = 'none';
+  modalVideoContainer.style.display = 'none';
+  modalVideoContainer.innerHTML = ''; // Remove old iframe
+
   if (item.media_type === 'image') {
     modalImage.src = item.hdurl || item.url;
     modalImage.alt = item.title;
     modalImage.style.display = 'block';
-    modalVideoContainer.style.display = 'none';
-    modalVideo.src = '';
   } else if (item.media_type === 'video') {
-    modalVideo.src = getYouTubeEmbedUrl(item.url, true);
-    modalImage.style.display = 'none';
+    // Create a fresh iframe every time to ensure attributes are applied correctly
+    const newIframe = document.createElement('iframe');
+    newIframe.id = 'modalVideo';
+    newIframe.title = 'NASA Video';
+    newIframe.src = getYouTubeEmbedUrl(item.url, true);
+    newIframe.frameborder = '0';
+    // Set all necessary fullscreen attributes directly on the new element
+    newIframe.setAttribute('allowfullscreen', '');
+    newIframe.setAttribute('allow', 'fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+    
+    modalVideoContainer.appendChild(newIframe);
     modalVideoContainer.style.display = 'block';
   }
 
@@ -540,7 +553,8 @@ function showBootstrapModal(item) {
 
   // When the modal is hidden, clear the video src to stop playback
   modalElement.addEventListener('hidden.bs.modal', () => {
-    modalVideo.src = '';
+    // Clear the container to remove the iframe and stop the video
+    modalVideoContainer.innerHTML = '';
   }, { once: true });
 }
 
