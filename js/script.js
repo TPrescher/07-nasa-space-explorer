@@ -62,23 +62,12 @@ function getConsecutiveDates(endDate, count = 9) {
 
 // Utility: Extract YouTube video ID from various URL formats
 function getYouTubeVideoId(url) {
-  // Handle various YouTube URL formats:
-  // https://www.youtube.com/watch?v=VIDEO_ID
-  // https://youtu.be/VIDEO_ID
-  // https://www.youtube.com/embed/VIDEO_ID
-  // https://www.youtube.com/v/VIDEO_ID
-  
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+  // This regular expression matches different YouTube URL formats and extracts the video ID
+  // Examples: youtube.com/watch?v=VIDEO_ID, youtu.be/VIDEO_ID, youtube.com/embed/VIDEO_ID, youtube.com/v/VIDEO_ID
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/);
+  if (match && match[1]) {
+    return match[1];
   }
-  
   return null;
 }
 
