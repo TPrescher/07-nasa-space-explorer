@@ -12,21 +12,86 @@ let cachedWindow = [];
 // --nasa-white: #fff;
 // --nasa-black: #222;
 
-// Space facts for random display
-const spaceFacts = [
-  "Did you know? The Sun accounts for 99.86% of the mass in our solar system!",
-  "Did you know? A day on Venus is longer than its year.",
-  "Did you know? Neutron stars can spin at a rate of 600 rotations per second!",
-  "Did you know? The footprints on the Moon will be there for millions of years.",
-  "Did you know? Jupiter has 95 known moons as of 2025.",
-  "Did you know? The Milky Way galaxy will collide with Andromeda in about 4.5 billion years.",
-  "Did you know? Space is completely silent—there's no air for sound to travel.",
-  "Did you know? The largest volcano in the solar system is on Mars: Olympus Mons.",
-  "Did you know? Saturn could float in water because it's mostly made of gas.",
-  "Did you know? There are more trees on Earth than stars in the Milky Way.",
-  "Did you know? The Hubble Space Telescope has traveled over 4 billion miles in orbit!"
+// --nasa-text-dark: #0b3d91;
+// --nasa-text-gray: #bbb;
+
+// Famous NASA quotes and space facts for random display
+const spaceContent = [
+  // Quotes
+  {
+    type: 'quote',
+    text: "That's one small step for a man, one giant leap for mankind.",
+    author: "Neil Armstrong",
+    context: "Apollo 11 Moon Landing, 1969"
+  },
+  {
+    type: 'quote',
+    text: "Houston, we have a problem.",
+    author: "Jack Swigert & Jim Lovell",
+    context: "Apollo 13 Mission, 1970"
+  },
+  {
+    type: 'quote',
+    text: "Failure is not an option.",
+    author: "Gene Kranz",
+    context: "Apollo 13 Mission Control, 1970"
+  },
+  {
+    type: 'quote',
+    text: "The Earth is the cradle of humanity, but one cannot live in a cradle forever.",
+    author: "Konstantin Tsiolkovsky",
+    context: "Pioneer of Astronautic Theory"
+  },
+  {
+    type: 'quote',
+    text: "To confine our attention to terrestrial matters would be to limit the human spirit.",
+    author: "Stephen Hawking",
+    context: "Physicist & Cosmologist"
+  },
+  {
+    type: 'quote',
+    text: "Somewhere, something incredible is waiting to be known.",
+    author: "Carl Sagan",
+    context: "Astronomer & Author"
+  },
+  {
+    type: 'quote',
+    text: "I believe that this nation should commit itself to achieving the goal, before this decade is out, of landing a man on the Moon and returning him safely to the Earth.",
+    author: "John F. Kennedy",
+    context: "Address to Congress, 1961"
+  },
+  {
+    type: 'quote',
+text: "The dream is alive.",
+    author: "Christa McAuliffe",
+    context: "Teacher in Space Project, 1985"
+  },
+  // Space Facts
+  {
+    type: 'fact',
+    text: "A day on Venus is longer than a year on Venus. It rotates on its axis slower than it orbits the Sun."
+  },
+  {
+    type: 'fact',
+    text: "The sunset on Mars appears blue."
+  },
+  {
+    type: 'fact',
+    text: "In space, astronauts cannot cry properly because there is no gravity to make the tears flow down."
+  },
+  {
+    type: 'fact',
+    text: "The largest volcano in our solar system is Olympus Mons on Mars, which is three times the height of Mount Everest."
+  },
+  {
+    type: 'fact',
+    text: "There is a planet made of diamonds twice the size of Earth, named '55 Cancri e'."
+  },
+  {
+    type: 'fact',
+    text: "Space is completely silent because there is no atmosphere for sound to travel through."
+  }
 ];
-let factIndex = 0;
 let factInterval = null;
 
 // Global variables to store the current gallery data and active filter
@@ -112,17 +177,27 @@ function hideLoader() {
 function updateFactBanner() {
   const factDiv = document.getElementById('space-fact');
   if (factDiv) {
-    factDiv.textContent = spaceFacts[factIndex];
+    // Select a random item from the spaceContent array
+    const randomIndex = Math.floor(Math.random() * spaceContent.length);
+    const item = spaceContent[randomIndex];
+
+    // Check if the item is a quote or a fact and format accordingly
+    if (item.type === 'quote') {
+      factDiv.innerHTML = `
+        <p class="quote mb-3">“${item.text}”</p>
+        <footer class="blockquote-footer">${item.author}, <cite>${item.context}</cite></footer>
+      `;
+    } else {
+      factDiv.innerHTML = `<p class="fact">${item.text}</p>`;
+    }
   }
 }
 
 function startFactCycle() {
-  updateFactBanner();
+  updateFactBanner(); // Show one immediately
   if (factInterval) clearInterval(factInterval);
-  factInterval = setInterval(() => {
-    factIndex = (factIndex + 1) % spaceFacts.length;
-    updateFactBanner();
-  }, 10000);
+  // Set an interval to update the banner every 10 seconds
+  factInterval = setInterval(updateFactBanner, 10000);
 }
 
 function setTheme(mode) {
@@ -134,7 +209,7 @@ function setTheme(mode) {
     if (toggle) {
       toggle.classList.remove('btn-outline-dark');
       toggle.classList.add('btn-outline-light');
-      toggle.textContent = 'Light';
+      toggle.textContent = 'Light Mode';
     }
   } else {
     body.classList.add('light-mode');
@@ -142,7 +217,7 @@ function setTheme(mode) {
     if (toggle) {
       toggle.classList.remove('btn-outline-light');
       toggle.classList.add('btn-outline-dark');
-      toggle.textContent = 'Dark';
+      toggle.textContent = 'Dark Mode';
     }
   }
 }
@@ -194,7 +269,7 @@ function setupDateInputsWithNote(startInput, endInput) {
     note.id = 'date-note';
     note.className = 'text-center text-secondary mb-3';
     note.style.fontSize = '1em';
-    note.textContent = 'Select a start date. You’ll see 9 days of images up to today.';
+    note.textContent = "Select a start date to view up to 9 of the latest images and videos from NASA's daily gallery.";
     const filters = document.querySelector('.filters');
     if (filters && filters.parentNode) {
       filters.parentNode.insertBefore(note, filters.nextSibling);
